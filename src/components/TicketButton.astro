@@ -1,0 +1,79 @@
+---
+/**
+ * TicketButton — A styled CTA button for ticket purchases.
+ * Copy this file into your Astro project's src/components/ directory.
+ * Requires Tailwind CSS.
+ *
+ * Usage:
+ *   import TicketButton from '../components/TicketButton.astro';
+ *   <TicketButton href="https://kartis-astro.vercel.app/en/event/my-event" />
+ *   <TicketButton href="/checkout" label="Reserve Table" variant="outline" size="lg" />
+ *   <TicketButton href="/checkout" variant="solid" accentColor="#34d399" />
+ */
+
+interface Props {
+  href: string;
+  label?: string;
+  variant?: 'solid' | 'outline' | 'ghost';
+  size?: 'sm' | 'md' | 'lg';
+  accentColor?: string;
+  fullWidth?: boolean;
+  disabled?: boolean;
+  newTab?: boolean;
+}
+
+const {
+  href,
+  label = 'Get Tickets',
+  variant = 'solid',
+  size = 'md',
+  accentColor = '#a78bfa',
+  fullWidth = false,
+  disabled = false,
+  newTab = true,
+} = Astro.props;
+
+const sizeClasses: Record<string, string> = {
+  sm: 'px-4 py-2 text-[10px]',
+  md: 'px-6 py-3 text-xs',
+  lg: 'px-8 py-4 text-sm',
+};
+
+const baseClasses = `inline-flex items-center justify-center gap-2 font-medium tracking-wider uppercase transition-all duration-300 hover:-translate-y-0.5 ${sizeClasses[size]} ${fullWidth ? 'w-full' : ''}`;
+
+const variantStyles: Record<string, { style: string; classes: string }> = {
+  solid: {
+    style: `background: ${accentColor}; color: #000`,
+    classes: 'hover:opacity-90',
+  },
+  outline: {
+    style: `border: 1px solid ${accentColor}; color: ${accentColor}`,
+    classes: 'bg-transparent hover:bg-white/[0.03]',
+  },
+  ghost: {
+    style: `color: ${accentColor}`,
+    classes: 'bg-transparent hover:bg-white/[0.05]',
+  },
+};
+
+const v = variantStyles[variant];
+---
+
+{disabled ? (
+  <span
+    class={`${baseClasses} opacity-40 cursor-not-allowed`}
+    style={v.style}
+  >
+    🎟️ {label}
+  </span>
+) : (
+  <a
+    href={href}
+    target={newTab ? '_blank' : '_self'}
+    rel={newTab ? 'noopener noreferrer' : undefined}
+    class={`${baseClasses} ${v.classes}`}
+    style={v.style}
+  >
+    🎟️ {label}
+  </a>
+)}
