@@ -1,0 +1,149 @@
+---
+/**
+ * NewsletterForm — Email subscribe form with Resend integration endpoint.
+ * Copy this file into your Astro project's src/components/ directory.
+ * Requires Tailwind CSS. Works with vanilla JS (no React/Vue needed).
+ *
+ * The form submits to `endpoint` via POST with JSON body { email }.
+ * For Resend integration, create an API route in your Astro project:
+ *
+ *   // src/pages/api/subscribe.ts
+ *   import { Resend } from 'resend';
+ *   const resend = new Resend(import.meta.env.RESEND_API_KEY);
+ *   export async function POST({ request }) {
+ *     const { email } = await request.json();
+ *     await resend.contacts.create({ email, audienceId: 'YOUR_AUDIENCE_ID' });
+ *     return new Response(JSON.stringify({ ok: true }), { status: 200 });
+ *   }
+ *
+ * @param {string} [endpoint] - API endpoint to POST the email to (default: /api/subscribe)
+ * @param {string} [heading] - Heading text above the form
+ * @param {string} [description] - Subtext below the heading
+ * @param {string} [buttonLabel] - Submit button text (default: Subscribe)
+ * @param {string} [placeholder] - Input placeholder text
+ * @param {string} [successMessage] - Message shown on success
+ * @param {string} [accentColor] - Accent color for the button (default: #a78bfa)
+ * @param {boolean} [compact] - Inline layout without heading/description
+ *
+ * Usage:
+ *   import NewsletterForm from '../components/NewsletterForm.astro';
+ *   <NewsletterForm heading="Stay in the loop" description="Get event updates and early access." />
+ *   <NewsletterForm endpoint="/api/subscribe" compact={true} />
+ */
+
+interface Props {
+  endpoint?: string;
+  heading?: string;
+  description?: string;
+  buttonLabel?: string;
+  placeholder?: string;
+  successMessage?: string;
+  accentColor?: string;
+  compact?: boolean;
+}
+
+const {
+  endpoint = '/api/subscribe',
+  heading,
+  description,
+  buttonLabel = 'Subscribe',
+  placeholder = 'your@email.com',
+  successMessage = 'You\'re in! Check your inbox.',
+  accentColor = '#a78bfa',
+  compact = false,
+} = Astro.props;
+
+const uid = `nl-${Math.random().toString(36).slice(2, 8)}`;
+---
+
+<div class="newsletter-form" id={uid} data-endpoint={endpoint} data-success-message={successMessage}>
+  {!compact && (heading || description) && (
+    <div class="mb-5">
+      {heading && (
+        <h3 class="text-lg font-semibold tracking-tight text-white mb-1">{heading}</h3>
+      )}
+      {description && (
+        <p class="text-sm text-white/40">{description}</p>
+      )}
+    </div>
+  )}
+
+  <form class="newsletter-form__form flex gap-2" novalidate>
+    <input
+      type="email"
+      name="email"
+      required
+      placeholder={placeholder}
+      autocomplete="email"
+      class="flex-1 min-w-0 px-4 py-3 text-sm bg-white/[0.05] border border-white/[0.08] text-white placeholder-white/30 outline-none transition-all duration-300 focus:border-white/20 focus:bg-white/[0.07]"
+    />
+    <button
+      type="submit"
+      class="shrink-0 px-6 py-3 text-xs font-bold tracking-wider uppercase transition-all duration-300 hover:-translate-y-0.5 hover:opacity-90"
+      style={`background: ${accentColor}; color: #000`}
+    >
+      {buttonLabel}
+    </button>
+  </form>
+
+  <div class="newsletter-form__status mt-3 text-sm hidden" role="status" aria-live="polite"></div>
+</div>
+
+<script>
+  document.querySelectorAll('.newsletter-form').forEach((container) => {
+    const form = container.querySelector('.newsletter-form__form') as HTMLFormElement | null;
+    const statusEl = container.querySelector('.newsletter-form__status') as HTMLElement | null;
+    const endpoint = container.getAttribute('data-endpoint') || '/api/subscribe';
+    const successMsg = container.getAttribute('data-success-message') || 'Subscribed!';
+
+    if (!form || !statusEl) return;
+
+    function showStatus(message: string, isError: boolean) {
+      if (!statusEl) return;
+      statusEl.textContent = message;
+      statusEl.className = `newsletter-form__status mt-3 text-sm ${isError ? 'text-red-400' : 'text-green-400'}`;
+      statusEl.classList.remove('hidden');
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const input = form.querySelector('input[name="email"]') as HTMLInputElement;
+      const button = form.querySelector('button[type="submit"]') as HTMLButtonElement;
+      const email = input?.value?.trim();
+
+      if (!email || !input.checkValidity()) {
+        showStatus('Please enter a valid email address.', true);
+        return;
+      }
+
+      button.disabled = true;
+      button.textContent = '...';
+      statusEl.classList.add('hidden');
+
+      try {
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email }),
+        });
+
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.message || `Request failed (${res.status})`);
+        }
+
+        showStatus(successMsg, false);
+        input.value = '';
+      } catch (err: any) {
+        showStatus(err.message || 'Something went wrong. Please try again.', true);
+      } finally {
+        button.disabled = false;
+        button.textContent = form.dataset.originalLabel || 'Subscribe';
+      }
+    });
+
+    // Store original label for restoration after submit
+    const btn = form.querySelector('button[type="submit"]');
+    if (btn) form.dataset.originalLabel = btn.textContent || 'Subscribe';
+  });
+</script>
